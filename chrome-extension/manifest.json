@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "PMI 点播学习助手",
+  "version": "1.0.8",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["https://projectmanagement.com/*", "https://www.projectmanagement.com/*"],
+  "action": {"default_popup": "popup.html"},
+  "background": {"service_worker": "worker.js"},
+  "content_scripts": [{
+    "matches": ["https://projectmanagement.com/videos/*", "https://www.projectmanagement.com/videos/*", "https://projectmanagement.com/webinars/webinarmainondemand.cfm*", "https://www.projectmanagement.com/webinars/webinarmainondemand.cfm*"],
+    "js": ["course.js"]
+  }]
+}
