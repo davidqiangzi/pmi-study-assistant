@@ -56,4 +56,4 @@ npm start -- --attach --course 1177738 --run --limit 1
 
 以 Chrome 扩展的 `manifest.json` 版本号为发布版本。每次发布时同步更新 [版本记录](CHANGELOG.md)，提交源码并创建 `v<版本号>` Git 标签。扩展 ZIP 作为对应 GitHub Release 的附件上传，解压后的根目录应直接包含 `manifest.json`。
 
-项目采用保留所有权利的发布方式。详见 [著作权与授权](COPYRIGHT.md)。
+自 v1.0.9 起，项目采用 [Apache-2.0](LICENSE) 许可，版权署名为 davidqiangzi。随附 [NOTICE](NOTICE) 和[著作权说明](COPYRIGHT.md)。版本号增加仅用于区分授权发布，扩展功能未改动。

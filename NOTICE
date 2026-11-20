@@ -1,0 +1,9 @@
+PMI 点播学习助手 (PMI Study Assistant)
+Copyright 2026 davidqiangzi
+
+ProjectManagement.com、PMI、PMP 和 PgMP 等名称仅用于说明兼容范围。
+本项目由社区独立维护，与 PMI 或 ProjectManagement.com 无关联。
+第三方商标、网站内容与课程材料的权利由各自权利人保留。
+
+Playwright 是可选命令行工具的外部依赖，采用 Apache-2.0 许可。
+本仓库与 Chrome 扩展发布包均未捆绑 Playwright。
