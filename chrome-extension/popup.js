@@ -25,10 +25,12 @@ function render(data) {
   const { active, phase, pending, pendingHere, tabKind, tabTitle, target, status } = data
   const course = tabKind === 'course'
   const outside = tabKind === 'other'
-  const title = active ? target : course ? tabTitle : ''
+  const rawTitle = active ? target : course ? tabTitle : ''
+  const title = rawTitle?.replace(/^ProjectManagement\.com\s*(?:[-–—|:]\s*)?/i, '').trim() || rawTitle
   elements.state.dataset.tone = active ? 'live' : pending || status ? 'warning' : 'neutral'
   setText(elements.phase, active ? phaseLabels[phase] || '正在运行' : pending ? '评分待核对' : '自动流程未运行')
   setText(elements.target, title || '')
+  elements.target.title = title || ''
   elements.target.hidden = !title
   setText(elements.status, status || (pending ? '请回原课程页查看是否已保存评分。' : course ? '可以从当前播放位置开始。' : outside ? '请打开 PMI 点播列表或课程页。' : '可以在当前筛选结果页选择课程。'))
   elements.action.disabled = busy
