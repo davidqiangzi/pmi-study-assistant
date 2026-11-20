@@ -59,18 +59,29 @@ async function handle(message, sender) {
   const id = courseId(sender.url)
   if (flow.courseId ? id !== flow.courseId : !listing.test(sender.url)) return {}
   if (message.action === 'current') {
-    if (sender.documentId === flow.previousDocumentId) return {}
+    if (sender.documentId === flow.previousDocumentId
+      || (sender.documentLifecycle && sender.documentLifecycle !== 'active')) return {}
+    if (flow.documentId && flow.documentId !== sender.documentId) {
+      // A queued message can arrive from a document Chrome has already replaced.
+      const [live] = await chrome.scripting.executeScript({
+        target: { tabId: flow.tabId, frameIds: [0] },
+        func: () => true,
+      }).catch(() => [])
+      if (live?.documentId !== sender.documentId) return {}
+      if (!['watch', 'listing'].includes(flow.phase)) {
+        flow.active = false
+        flow.status = '评分期间页面已重新加载，请核对原课程后继续'
+        await chrome.storage.session.set({ workflow: flow })
+        return {}
+      }
+      flow.previousDocumentId = flow.documentId
+      delete flow.documentId
+      flow.status = id ? '课程页面已重新加载，正在恢复播放' : '列表已重新加载，正在恢复筛选'
+    }
     if (!flow.documentId) {
       flow.documentId = sender.documentId
       if (id && sender.tab.title) flow.target = sender.tab.title
       await chrome.storage.session.set({ workflow: flow })
-    }
-    if (flow.documentId !== sender.documentId) {
-      if (sender.documentLifecycle === 'cached' || sender.documentLifecycle === 'pending_deletion') return {}
-      flow.active = false
-      flow.status = '页面已重新加载，请重新接管'
-      await chrome.storage.session.set({ workflow: flow })
-      return {}
     }
     return { active: true, seen: flow.seen, phase: flow.phase }
   }

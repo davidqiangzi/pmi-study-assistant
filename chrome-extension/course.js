@@ -62,12 +62,16 @@
       if (!video || (video.paused && !video.seeking)) {
         waitingSince ??= Date.now()
         if (Date.now() - waitingSince >= 60000) throw new Error('60 秒内未能启动或恢复播放，请检查播放器')
-        const play = find(buttons, /^(?:Play(?: Video)?|播放(?:视频)?)$/i)
+        const player = video?.closest('.video-js')
+        const start = /^(?:Play Video|播放视频)$/i
+        const resume = /^(?:Play|播放)$/i
+        const play = (player && (find(buttons, start, player) || find(buttons, resume, player)))
+          || find(buttons, start) || find(buttons, resume)
         if (play && attempts < 5) {
           await send('progress', video ? '正在恢复暂停的课程' : '正在启动课程播放器')
           if (!await current()) return
           attempts++
-          play.click()
+          if (play.isConnected && visible(play)) play.click()
         }
         lastAdvance = Date.now()
       } else if (video) {
