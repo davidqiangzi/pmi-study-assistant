@@ -9,7 +9,19 @@ async function handle(message, sender) {
   const { workflow: flow } = await chrome.storage.session.get('workflow')
   if (sender.url === popupUrl && message.action === 'status') {
     const { pendingRating } = await chrome.storage.local.get('pendingRating')
-    return { status: flow?.status || '尚未接管', pending: Boolean(pendingRating) }
+    const tab = Number.isInteger(message.tabId) ? await chrome.tabs.get(message.tabId).catch(() => undefined) : undefined
+    const id = courseId(tab?.url)
+    return {
+      status: flow?.status || '',
+      active: Boolean(flow?.active),
+      phase: flow?.phase,
+      target: flow?.target || '',
+      tabKind: id ? 'course' : listing.test(tab?.url || '') ? 'listing' : 'other',
+      tabTitle: id ? tab.title : '',
+      pending: Boolean(pendingRating),
+      pendingHere: Boolean(id && id === courseId(pendingRating)),
+      pendingUrl: courseId(pendingRating) ? pendingRating : '',
+    }
   }
   if (sender.url === popupUrl && message.action === 'clearPending') {
     if (flow?.active) throw new Error('请先停止接管')
@@ -31,7 +43,8 @@ async function handle(message, sender) {
     }
     await chrome.storage.session.set({ workflow: {
       active: true, tabId: tab.id, courseId: id, phase: pending ? 'recover' : id ? 'watch' : 'listing',
-      status: pending ? '正在核对上次评分' : '已接管', seen: [],
+      status: pending ? '正在核对原课程的评分状态' : id ? '正在读取播放器状态' : '正在读取课程列表',
+      target: id ? tab.title : '', seen: [],
     } })
     try {
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['course.js'] })
@@ -49,6 +62,7 @@ async function handle(message, sender) {
     if (sender.documentId === flow.previousDocumentId) return {}
     if (!flow.documentId) {
       flow.documentId = sender.documentId
+      if (id && sender.tab.title) flow.target = sender.tab.title
       await chrome.storage.session.set({ workflow: flow })
     }
     if (flow.documentId !== sender.documentId) {
@@ -136,7 +150,8 @@ async function handle(message, sender) {
     flow.phase = 'watch'
     flow.courseId = selected
     delete flow.documentId
-    flow.status = '已选中下一门课程'
+    flow.status = '已选中下一门课程，正在打开'
+    delete flow.target
     await chrome.storage.session.set({ workflow: flow })
     try {
       await chrome.tabs.update(flow.tabId, { url: message.status })
@@ -150,7 +165,8 @@ async function handle(message, sender) {
   }
   if (message.action === 'list') {
     if (!id || flow.phase !== 'rated') throw new Error('评分尚未确认，无法切课')
-    flow.status = '正在筛选并比较课程 PDU'
+    flow.status = '正在筛选下一门课程'
+    delete flow.target
     const list = new URL('/webinars/webinarmainondemand.cfm', sender.url)
     const tab = await chrome.tabs.create({ url: list.href, active: true, windowId: sender.tab.windowId })
     flow.tabId = tab.id

@@ -1,13 +1,46 @@
 {
   "manifest_version": 3,
   "name": "PMI 点播学习助手",
-  "version": "1.0.9",
-  "permissions": ["storage", "scripting"],
-  "host_permissions": ["https://projectmanagement.com/*", "https://www.projectmanagement.com/*"],
-  "action": {"default_popup": "popup.html"},
-  "background": {"service_worker": "worker.js"},
-  "content_scripts": [{
-    "matches": ["https://projectmanagement.com/videos/*", "https://www.projectmanagement.com/videos/*", "https://projectmanagement.com/webinars/webinarmainondemand.cfm*", "https://www.projectmanagement.com/webinars/webinarmainondemand.cfm*"],
-    "js": ["course.js"]
-  }]
+  "version": "1.1.0",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://projectmanagement.com/*",
+    "https://www.projectmanagement.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PMI 点播学习助手",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://projectmanagement.com/videos/*",
+        "https://www.projectmanagement.com/videos/*",
+        "https://projectmanagement.com/webinars/webinarmainondemand.cfm*",
+        "https://www.projectmanagement.com/webinars/webinarmainondemand.cfm*"
+      ],
+      "js": [
+        "course.js"
+      ]
+    }
+  ],
+  "description": "筛选符合条件的 PMI 点播课程，按当前页 PDU 排序，并在观看期间管理播放与切课。",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }

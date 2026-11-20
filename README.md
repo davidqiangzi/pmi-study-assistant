@@ -1,8 +1,24 @@
 # PMI 点播学习助手
 
+在 ProjectManagement.com 筛选点播研讨会，按当前页 PDU 优先选课，并在你观看期间管理播放、评分与切课。Chrome 扩展可直接使用当前浏览器的 PMI 登录会话。
+
+## 安装与使用 Chrome 扩展
+
+1. 从 [GitHub Releases](https://github.com/davidqiangzi/pmi-study-assistant/releases/latest) 下载扩展 ZIP 并解压。
+2. 在使用 PMI 的 Chrome 配置打开 `chrome://extensions`，启用开发者模式，点击「加载未打包的扩展程序」，选择直接包含 `manifest.json` 的目录。使用源码时选择 `chrome-extension`。
+3. 登录 PMI，打开点播列表或课程页。列表上选择「从当前列表选课」，课程页选择「从当前课程开始」。从其他页面可以先选择「打开点播列表」。
+4. 请完整观看课程。扩展会在确认播放结束后提交 5 星评分，核对网站已保存，再等待 3–18 秒并筛选下一门。筛选条件为 PMP/PgMP、免费和未查看，PDU 仅比较当前页。
+5. 面板可查看当前课程和运行状态。点击「停止自动流程」会结束接管，保留视频和标签页。
+
+**更新已安装扩展**：将新文件放入同一个扩展目录，在 `chrome://extensions` 点击扩展卡片上的重新加载图标。回到 PMI 页重新启动流程。
+
+**评分待核对**：选择「打开原课程」，核实页面是否显示已保存的评分。回到原课程页可以选择「核对评分并继续」。只有在已手动核对并决定处理本次中断后，才使用「解除待核对记录」。这一操作只清除扩展的本地记录。
+
+## 可选的 Playwright 脚本
+
 需要 Node.js 22 或更新版本，以及本机 Google Chrome。脚本使用独立的 .profile 目录复用登录会话。首次登录时直接在 Chrome 完成 PMI 登录和可能的多因素验证。请把 .profile 当作登录凭证保管。
 
-## 启动与配置
+### 启动与配置
 
 ```sh
 npm install --registry=https://registry.npmjs.org
@@ -33,11 +49,11 @@ npm start -- --run
 
 处理记录在 state/runs.jsonl。正式提交前先写入 rating_started，核对网站状态后写入 rated。上次结果不明确且课程仍出现在结果中时，脚本会先打开课程核对已评分标记。若仍无法确认，请在网站核实后再处理该课程的日志状态。日志与浏览器会话均保存在本机，适用于单一 PMI 账户。
 
-## PDU 优先与间隔
+### PDU 优先与间隔
 
 在 site.json 配置 courseCard 为结果容器内的单门课程卡片选择器，pdu 为卡片中显示 PDU 数值的元素选择器。仅比较筛选结果当前页的课程，按 PDU 从高到低排序，同分按列表先后处理。评级成功后，如果本轮还有处理额度，脚本随机等待 3 至 18 秒，再刷新并筛选课程列表。
 
-## 接入已打开的课程
+### 接入已打开的课程
 
 macOS 上可使用 Chrome 144+ 的本地 Remote Debugging。当前浏览器须先开启调试，并由使用者在 Chrome 的连接弹窗中允许。将下例中的 ID 替换为指定课程 ID。
 
@@ -48,12 +64,8 @@ npm start -- --attach --course 1177738 --run --limit 1
 
 第一条只核对指定课程标签页。第二条沿用已打开的播放器和当前进度，完整观看并确认评分后关闭该课程页。省略 `--limit 1` 可继续处理后续课程。连接关闭时，脚本解除调试连接，其他 Chrome 标签页仍可使用。
 
-## Chrome 扩展
-
-在 SCOTT-777-PMP 中打开 chrome://extensions，开启开发者模式，选择「加载已解压的扩展程序」，加载本项目的 chrome-extension 目录。回到课程页，从扩展图标选择「开始接管」。它会验证实际播放覆盖范围、处理五星评分，并在确认后等待 3–18 秒再加载点播列表。扩展仅比较当前页课程的 PDU。「停止接管」会结束当前自动处理。
-
 ## 版本与著作权
 
 以 Chrome 扩展的 `manifest.json` 版本号为发布版本。每次发布时同步更新 [版本记录](CHANGELOG.md)，提交源码并创建 `v<版本号>` Git 标签。扩展 ZIP 作为对应 GitHub Release 的附件上传，解压后的根目录应直接包含 `manifest.json`。
 
-自 v1.0.9 起，项目采用 [Apache-2.0](LICENSE) 许可，版权署名为 davidqiangzi。随附 [NOTICE](NOTICE) 和[著作权说明](COPYRIGHT.md)。版本号增加仅用于区分授权发布，扩展功能未改动。
+自 v1.0.9 起，项目采用 [Apache-2.0](LICENSE) 许可，版权署名为 davidqiangzi。随附 [NOTICE](NOTICE) 和[著作权说明](COPYRIGHT.md)。
