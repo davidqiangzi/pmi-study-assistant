@@ -2,6 +2,14 @@
 
 在 ProjectManagement.com 筛选点播研讨会，按当前页 PDU 优先选课，并在你观看期间管理播放、评分与切课。Chrome 扩展可直接使用当前浏览器的 PMI 登录会话。
 
+## 本地自动确认版
+
+本分支需单独加载。克隆仓库后切换到 `local-auto-confirm`，在 `chrome://extensions` 选择「加载未打包的扩展程序」，加载该检出目录中的 `chrome-extension`。使用前停用普通版，避免两个扩展接管同一课程。
+
+Chrome 会为 `debugger` 权限提示可访问页面调试器和读写所有网站的数据。本分支只在正在接管的 PMI 课程进入评分阶段时连接课程标签页，只自动确认同一门课的 `Thanks for rating!` 原生提示。确认后或连接超过 90 秒时断开调试。课程只有在网站页面显示已保存 5 星后才切换。调试连接不可用时，可手动确认 Chrome 弹窗。
+
+普通版由 `main` 和常规版本标签维护。此分支使用带 `-local` 的专用标签。Chrome Manifest 版本仍为数字格式 `1.1.3`。
+
 ## 安装与使用 Chrome 扩展
 
 1. 从 [GitHub Releases](https://github.com/davidqiangzi/pmi-study-assistant/releases/latest) 下载扩展 ZIP 并解压。

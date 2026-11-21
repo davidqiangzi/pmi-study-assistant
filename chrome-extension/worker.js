@@ -5,6 +5,51 @@ const courseId = url => course.test(url || '') ? new URL(url).pathname.split('/'
 const popupUrl = chrome.runtime.getURL('popup.html')
 let queue = Promise.resolve()
 
+const ratingSessions = new Map()
+
+async function detachRating(tabId) {
+  const session = ratingSessions.get(tabId)
+  if (!session) return
+  ratingSessions.delete(tabId)
+  clearTimeout(session.timer)
+  await chrome.debugger.detach({ tabId }).catch(() => {})
+}
+
+async function armRating(tabId, id) {
+  const target = { tabId }
+  await chrome.debugger.attach(target, '1.3')
+  const session = { id, timer: setTimeout(() => detachRating(tabId), 90000) }
+  ratingSessions.set(tabId, session)
+  try {
+    await chrome.debugger.sendCommand(target, 'Page.enable')
+  } catch (error) {
+    await detachRating(tabId)
+    throw error
+  }
+}
+
+chrome.debugger.onEvent.addListener((source, method, dialog) => {
+  const session = ratingSessions.get(source.tabId)
+  if (!session || method !== 'Page.javascriptDialogOpening'
+    || !['alert', 'confirm'].includes(dialog?.type)
+    || courseId(dialog.url) !== session.id
+    || !/^\s*Thanks for rating!\s*$/i.test(dialog.message)) return
+
+  queue = queue.then(async () => {
+    const { workflow } = await chrome.storage.session.get('workflow')
+    if (ratingSessions.get(source.tabId) !== session || !workflow?.active
+      || workflow.tabId !== source.tabId || workflow.courseId !== session.id
+      || workflow.phase !== 'rating') return
+    await chrome.debugger.sendCommand({ tabId: source.tabId }, 'Page.handleJavaScriptDialog', { accept: true })
+    await detachRating(source.tabId)
+  }).catch(error => console.warn('无法自动确认评分提示，请在 Chrome 中处理', error))
+})
+
+chrome.debugger.onDetach.addListener(source => {
+  clearTimeout(ratingSessions.get(source.tabId)?.timer)
+  ratingSessions.delete(source.tabId)
+})
+
 async function handle(message, sender) {
   const { workflow: flow } = await chrome.storage.session.get('workflow')
   if (sender.url === popupUrl && message.action === 'status') {
@@ -29,6 +74,7 @@ async function handle(message, sender) {
     return { status: '已解除待核对记录，可以重新接管' }
   }
   if (sender.url === popupUrl && message.action === 'stop') {
+    await detachRating(flow?.tabId)
     await chrome.storage.session.remove('workflow')
     return { status: '已停止接管' }
   }
@@ -71,6 +117,7 @@ async function handle(message, sender) {
       if (!['watch', 'listing'].includes(flow.phase)) {
         flow.active = false
         flow.status = '评分期间页面已重新加载，请核对原课程后继续'
+        await detachRating(flow.tabId)
         await chrome.storage.session.set({ workflow: flow })
         return {}
       }
@@ -92,6 +139,7 @@ async function handle(message, sender) {
   if (message.action === 'failed') {
     flow.status = message.status
     flow.active = false
+    await detachRating(sender.tab.id)
   }
   if (message.action === 'rating') {
     if (flow.phase !== 'watch' || !id) throw new Error('当前课程不在可评分阶段')
@@ -99,12 +147,19 @@ async function handle(message, sender) {
     flow.status = '正在核对五星评分。若 Chrome 弹出提示，请点击「确定」'
     await chrome.storage.session.set({ workflow: flow })
     await chrome.storage.local.set({ pendingRating: sender.url })
+    try {
+      await armRating(sender.tab.id, id)
+    } catch {
+      flow.status = '自动确认未连接。如有 Chrome 评分提示，请点击「确定」'
+      await chrome.storage.session.set({ workflow: flow })
+    }
 
   }
   if (message.action === 'rated') {
     if (!id || !['watch', 'rating', 'recover'].includes(flow.phase)) throw new Error('评分确认阶段不匹配')
     const { pendingRating } = await chrome.storage.local.get('pendingRating')
     if (flow.phase !== 'watch' && courseId(pendingRating) !== id) throw new Error('待核对评分不匹配')
+    await detachRating(sender.tab.id)
     if (courseId(pendingRating) === id) await chrome.storage.local.remove('pendingRating')
     flow.phase = 'rated'
     flow.status = '已确认 5 星，等待切课'
@@ -181,6 +236,7 @@ function stopOwnedTab(tabId, status, url) {
       && (!url || (flow.courseId ? courseId(url) !== flow.courseId : !listing.test(url)))) {
       flow.active = false
       flow.status = status
+      await detachRating(tabId)
       await chrome.storage.session.set({ workflow: flow })
     }
   }).catch(error => console.warn('PMI 学习助手无法更新标签页状态', error))
