@@ -96,35 +96,10 @@ async function handle(message, sender) {
   if (message.action === 'rating') {
     if (flow.phase !== 'watch' || !id) throw new Error('当前课程不在可评分阶段')
     flow.phase = 'rating'
-    flow.status = '正在等待网站确认五星评分'
+    flow.status = '正在核对五星评分。若 Chrome 弹出提示，请点击「确定」'
     await chrome.storage.session.set({ workflow: flow })
     await chrome.storage.local.set({ pendingRating: sender.url })
-    await chrome.scripting.executeScript({
-      target: { tabId: sender.tab.id, documentIds: [sender.documentId] },
-      world: 'MAIN',
-      func: () => {
-        const alert = window.alert
-        const confirm = window.confirm
-        const isRatingReceipt = message =>
-          /^\s*(?:Thanks for rating|Thank you for rating)[!.！。]?\s*$/i.test(String(message))
-        function restore() {
-          if (window.alert === ratingAlert) window.alert = alert
-          if (window.confirm === ratingConfirm) window.confirm = confirm
-        }
-        function ratingAlert(message) {
-          if (!isRatingReceipt(message)) return alert.call(window, message)
-          restore()
-        }
-        function ratingConfirm(message) {
-          if (!isRatingReceipt(message)) return confirm.call(window, message)
-          restore()
-          return true
-        }
-        window.alert = ratingAlert
-        window.confirm = ratingConfirm
-        setTimeout(restore, 90000)
-      },
-    })
+
   }
   if (message.action === 'rated') {
     if (!id || !['watch', 'rating', 'recover'].includes(flow.phase)) throw new Error('评分确认阶段不匹配')

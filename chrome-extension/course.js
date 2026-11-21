@@ -108,7 +108,7 @@
           confirm.click()
         }
         return false
-      }, 90000, '90 秒内未确认五星评分，请在原课程核对评分或确认提示')
+      }, 300000, '评分结果待核对。请关闭 Chrome 评分提示，回原课选择「核对评分并继续」')
     }
     await send('rated')
     await wait((3 + Math.floor(Math.random() * 16)) * 1000)
