@@ -15,34 +15,66 @@ async function detachRating(tabId) {
   await chrome.debugger.detach({ tabId }).catch(() => {})
 }
 
-async function armRating(tabId, id) {
+async function armRating(tabId, id, url) {
   const target = { tabId }
+  const origin = new URL(url).origin
+  const tab = await chrome.tabs.get(tabId)
+  if (courseId(tab.url) !== id || new URL(tab.url).origin !== origin) {
+    throw new Error('评分标签页已换页')
+  }
   await chrome.debugger.attach(target, '1.3')
-  const session = { id, timer: setTimeout(() => detachRating(tabId), 90000) }
+  const session = { id, origin, timer: setTimeout(() => detachRating(tabId), 90000) }
   ratingSessions.set(tabId, session)
   try {
     await chrome.debugger.sendCommand(target, 'Page.enable')
+    const { frameTree } = await chrome.debugger.sendCommand(target, 'Page.getFrameTree')
+    session.frameId = frameTree?.frame?.id
   } catch (error) {
     await detachRating(tabId)
     throw error
   }
 }
 
+function receiptSource(session, dialog) {
+  if (dialog.url) {
+    try {
+      if (new URL(dialog.url).origin !== session.origin) return false
+    } catch {
+      return false
+    }
+    if (courseId(dialog.url)) return courseId(dialog.url) === session.id
+  }
+  return Boolean(session.frameId && dialog.frameId === session.frameId)
+}
+
 chrome.debugger.onEvent.addListener((source, method, dialog) => {
   const session = ratingSessions.get(source.tabId)
-  if (!session || method !== 'Page.javascriptDialogOpening'
-    || !['alert', 'confirm'].includes(dialog?.type)
-    || courseId(dialog.url) !== session.id
-    || !/^\s*Thanks for rating!\s*$/i.test(dialog.message)) return
+  if (!session || method !== 'Page.javascriptDialogOpening') return
 
   queue = queue.then(async () => {
     const { workflow } = await chrome.storage.session.get('workflow')
     if (ratingSessions.get(source.tabId) !== session || !workflow?.active
       || workflow.tabId !== source.tabId || workflow.courseId !== session.id
       || workflow.phase !== 'rating') return
-    await chrome.debugger.sendCommand({ tabId: source.tabId }, 'Page.handleJavaScriptDialog', { accept: true })
-    await detachRating(source.tabId)
-  }).catch(error => console.warn('无法自动确认评分提示，请在 Chrome 中处理', error))
+    const tab = await chrome.tabs.get(source.tabId)
+    if (courseId(tab.url) !== session.id || new URL(tab.url).origin !== session.origin
+      || !['alert', 'confirm'].includes(dialog?.type)
+      || !/^\s*(?:Thanks|Thank you) for rating[!.！。]?\s*$/i.test(dialog.message)
+      || !receiptSource(session, dialog)) {
+      workflow.status = '检测到 Chrome 对话框，但来源、类型或文本未匹配。请核对后手动处理'
+      await chrome.storage.session.set({ workflow })
+      return
+    }
+    try {
+      await chrome.debugger.sendCommand({ tabId: source.tabId }, 'Page.handleJavaScriptDialog', { accept: true })
+      workflow.status = '已自动确认 Chrome 评分提示，正在核对五星是否保存'
+      await detachRating(source.tabId)
+    } catch (error) {
+      workflow.status = 'Chrome 未接受自动确认，请手动关闭评分提示'
+      console.warn('评分提示确认失败', error)
+    }
+    await chrome.storage.session.set({ workflow })
+  }).catch(error => console.warn('无法核对 Chrome 评分提示', error))
 })
 
 chrome.debugger.onDetach.addListener(source => {
@@ -148,12 +180,13 @@ async function handle(message, sender) {
     await chrome.storage.session.set({ workflow: flow })
     await chrome.storage.local.set({ pendingRating: sender.url })
     try {
-      await armRating(sender.tab.id, id)
-    } catch {
+      await armRating(sender.tab.id, id, sender.url)
+      flow.status = '已连接 Chrome，正在等待评分提示或保存结果'
+    } catch (error) {
       flow.status = '自动确认未连接。如有 Chrome 评分提示，请点击「确定」'
-      await chrome.storage.session.set({ workflow: flow })
+      console.warn('Chrome 评分调试连接失败', error)
     }
-
+    await chrome.storage.session.set({ workflow: flow })
   }
   if (message.action === 'rated') {
     if (!id || !['watch', 'rating', 'recover'].includes(flow.phase)) throw new Error('评分确认阶段不匹配')
